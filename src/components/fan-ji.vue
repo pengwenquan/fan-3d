@@ -1,29 +1,72 @@
 <template>
-  <div id="container"></div>
+  <div class="main">
+    <div id="container"></div>
+    <div class="btn-group">
+      <div
+        class="btn-item start-stop"
+        :class="[isStart ? 'active' : '']"
+        @click="start"
+      >
+        风机开启
+      </div>
+      <div
+        class="btn-item fan-view"
+        :class="[isShowFan ? 'active' : '']"
+        @click="showFan"
+      >
+        数字风机
+      </div>
+      <div
+        class="btn-item detail-view"
+        :class="[isShowDetail ? 'active' : '']"
+        @click="showDetail"
+      >
+        舱体视角
+      </div>
+      <div
+        class="btn-item split-fan"
+        :class="[isPlit ? 'active' : '']"
+        @click="splitFan"
+      >
+        爆炸分裂
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
-import { TweenMax, Linear } from "gsap";
+import gsap from "gsap";
 
 let scene = new THREE.Scene();
+let camera = new THREE.PerspectiveCamera(
+  45,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  10000
+);
 let loader = new GLTFLoader();
 let arrTweenAn = [];
 let fan = new THREE.Object3D();
 let land1, land2, land3;
 let sceneOne = new THREE.Object3D();
+let sceneTwo = new THREE.Object3D();
+// 流光风机
+let flowTrunk = new THREE.Object3D();
+let flowFan = new THREE.Object3D();
+
+// 按钮点中状态
+let isStart = ref(true);
+let isShowFan = ref(false);
+let isShowDetail = ref(false);
+let isPlit = ref(false);
+let loading = ref(false);
 
 function init() {
-  let camera = new THREE.PerspectiveCamera(
-    45,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    10000
-  );
   camera.position.set(10, 7, 20);
   scene.add(camera);
 
@@ -58,11 +101,18 @@ function init() {
 function cloneFan(x, y, z) {
   let fan_clone = fan.clone();
   fan_clone.position.set(x, y, z);
-  TweenMax.to(fan_clone.children[0].rotation, 5, {
+  // let an = TweenMax.to(fan_clone.children[0].rotation, 5, {
+  //   x: fan_clone.children[0].rotation.x + Math.PI * 2,
+  //   repeat: -1,
+  //   ease: Linear.easeOut,
+  // });
+  let an = gsap.to(fan_clone.children[0].rotation, {
+    duration: 5,
     x: fan_clone.children[0].rotation.x + Math.PI * 2,
     repeat: -1,
-    ease: Linear.easeOut,
+    ease: "none",
   });
+  arrTweenAn.push(an);
   sceneOne.add(fan_clone);
 }
 
@@ -85,13 +135,19 @@ function addModel() {
       .setPath("./model/")
       .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
       .load("GLTF/yepian.glb", (gltf) => {
-        TweenMax.to(gltf.scene.rotation, 5, {
+        // let an = gsap.to(gltf.scene.rotation, 5, {
+        //   x: gltf.scene.rotation.x + Math.PI * 2,
+        //   repeat: -1,
+        //   ease: Linear.easeOut,
+        // });
+        let an = gsap.to(gltf.scene.rotation, {
+          duration: 5,
           x: gltf.scene.rotation.x + Math.PI * 2,
           repeat: -1,
-          ease: Linear.easeOut,
+          ease: "none",
         });
 
-        // arrTweenAn.push(an);
+        arrTweenAn.push(an);
         gltf.scene.position.set(-2.22, 99.65, 0);
         resolve(gltf.scene);
       });
@@ -179,11 +235,59 @@ function addModel() {
         resolve(gltf.scene);
       });
   });
-  Promise.all([p1, p2, p3, p4, p5]).then((result) => {
+
+  // 流光风叶
+  let p6 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/liuguang.glb", (gltf) => {
+        let an = gsap.to(gltf.scene.rotation, {
+          duration: 5,
+          x: gltf.scene.rotation.x + Math.PI * 2,
+          repeat: -1,
+          ease: "none",
+        });
+
+        arrTweenAn.push(an);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 风机底盘
+  let p7 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dipan2.glb", (gltf) => {
+        gltf.scene.scale.set(0.04, 0.04, 0.04);
+        gltf.scene.position.set(0, -5, -0.7);
+        gltf.scene.rotation.set(0, 90.43445, 0);
+        resolve(gltf.scene);
+      });
+  });
+
+  Promise.all([p1, p2, p3, p4, p5, p6, p7]).then((result) => {
     fan.add(result[0], result[1]);
     fan.scale.set(0.005, 0.005, 0.005);
     fan.position.set(5.11, 3.19598, 12.016);
     fan.rotation.set(0, 89.5, 0);
+    sceneOne.add(fan);
+    sceneOne.add(land1); // 把初始的地形123加入场景1
+    sceneOne.add(land2);
+    sceneOne.add(land3);
+
+    // 场景2
+    flowTrunk = result[5];
+    flowTrunk.position.set(-2.2235, 99.65812, -1.5);
+    flowFan.add(result[1].clone());
+    flowFan.add(flowTrunk);
+    flowFan.scale.set(0.04, 0.04, 0.04);
+    flowFan.rotation.set(0, 89.5, 0);
+    flowFan.position.set(0, -1, 0);
+    sceneTwo.add(flowFan);
+    sceneTwo.add(result[6]);
+    sceneTwo.visible = false;
 
     // 克隆风机
     cloneFan(0.74852, 2.56534, 7.44558);
@@ -244,15 +348,67 @@ function addModel() {
     cloneLand2(-0.92105, 2.31106, 33.284);
     cloneLand2(-15.615, 2.31106, 22.367);
     cloneLand2(-15.615, 2.14719, -38.39289);
-    scene.add(fan);
-    scene.add(land1);
-    scene.add(land2);
-    scene.add(land3);
     land1.position.set(17.33572, 2.7305, -1.85427);
     land2.position.set(20.758, 1.73076, -3.13564);
     land3.position.set(6.37, 2.578, 11.246);
     land3.rotation.set(0, 29.87, 0);
     scene.add(sceneOne);
+    scene.add(sceneTwo);
+  });
+}
+
+// 三个按钮：有先后顺序：风机视角 -》舱体视角 -》 爆炸分裂； 关闭就要逆着来
+function showFan() {
+  if (isShowDetail.value || isPlit.value || loading.value) return; // 走到了后面步骤的，不允许直接操作前面
+  isShowFan.value = !isShowFan.value;
+  loading.value = true;
+  if (isShowFan.value) {
+    gsap.to(camera.position, {
+      duration: 5,
+      x: 9.536,
+      y: 3.862,
+      z: 15.19,
+      repeat: 0,
+      ease: "expo",
+      onComplete: () => {
+        sceneOne.visible = false;
+        sceneTwo.visible = true;
+        loading.value = false;
+      },
+    });
+  } else {
+    sceneOne.visible = true;
+    sceneTwo.visible = false;
+    gsap.to(camera.position, {
+      duration: 5,
+      x: 10,
+      y: 7,
+      z: 20,
+      repeat: 0,
+      ease: "expo",
+      onComplete: () => {
+        loading.value = false;
+      },
+    });
+  }
+}
+
+function showDetail() {
+  if (!isShowFan.value || isPlit.value) return; // 风机视角下才可以操作
+  isShowDetail.value = !isShowDetail.value;
+}
+
+function splitFan() {
+  if (!isShowFan.value || !isShowDetail.value) return; // 风机视角下才可以操作
+  isPlit.value = !isPlit.value;
+}
+
+function start() {
+  const { value } = isStart;
+  isStart.value = !value;
+  console.log(value, isStart.value);
+  arrTweenAn.forEach((an) => {
+    isStart.value ? an.play() : an.pause();
   });
 }
 
@@ -262,9 +418,50 @@ onMounted(() => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.main,
 #container {
   width: 100%;
   height: 100%;
+}
+.btn-group {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translate(0, -50%);
+  display: flex;
+  .btn-item {
+    width: 78px;
+    height: 73px;
+    text-align: center;
+    line-height: 73px;
+    margin-right: 30px;
+    color: #f8f8f8;
+    cursor: pointer;
+  }
+  .start-stop {
+    background: url("@/assets/btn_nor_fjkq.png") center center no-repeat;
+  }
+  .start-stop.active {
+    background-image: url("@/assets/btn_hot_fjkq.png");
+  }
+  .fan-view {
+    background: url("@/assets/btn_nor_szfj.png") center center no-repeat;
+  }
+  .fan-view.active {
+    background: url("@/assets/btn_hot_szfj.png") center center no-repeat;
+  }
+  .detail-view {
+    background: url("@/assets/btn_nor_ctsj.png") center center no-repeat;
+  }
+  .detail-view.active {
+    background: url("@/assets/btn_hot_ctsj.png") center center no-repeat;
+  }
+  .split-fan {
+    background: url("@/assets/btn_nor_bz.png") center center no-repeat;
+  }
+  .split-fan.active {
+    background: url("@/assets/btn_hot_bz.png") center center no-repeat;
+  }
 }
 </style>
