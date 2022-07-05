@@ -128,6 +128,16 @@ function cloneLand2(x, y, z) {
   sceneOne.add(land2_clone);
 }
 
+function resetName(obj, name) {
+  let i = 0;
+  obj.traverse((item) => {
+    if (item.isMesh) {
+      item.name = `${name}_${i}`;
+      ++i;
+    }
+  });
+}
+
 function addModel() {
   //加载叶片模型
   let p1 = new Promise((resolve) => {
@@ -267,7 +277,147 @@ function addModel() {
       });
   });
 
-  Promise.all([p1, p2, p3, p4, p5, p6, p7]).then((result) => {
+  // 风叶中电子元件
+  let p8 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/toubu.glb", (gltf) => {
+        gltf.scene.position.set(3.5, 0, 0);
+        gltf.scene.rotation.set(10, 0, 0);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 尾部电子元件
+  let p9 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/zhuzhou.glb", (gltf) => {
+        gltf.scene.position.set(14.1, 100, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体底部元件2
+  let p10 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dizuo_2.glb", (gltf) => {
+        gltf.scene.position.set(37, 95, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+  // 发动机
+  let p11 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/fadongji.glb", function (gltf) {
+        gltf.scene.position.set(26.4, 102, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体底部元件1
+  let p12 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dizuo_1.glb", (gltf) => {
+        gltf.scene.position.set(20, 95, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体后主机1
+  let p13 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/houzhuji1.glb", (gltf) => {
+        gltf.scene.position.set(40, 102, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体电子元件3
+  let p14 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dianzi_3.glb", (gltf) => {
+        gltf.scene.position.set(33.1, 99.5, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体底座元件3
+  let p15 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dizuo_3.glb", (gltf) => {
+        gltf.scene.position.set(18, 92, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体底座元件4
+  let p16 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dizuo_4.glb", (gltf) => {
+        gltf.scene.position.set(19.5, 95.8, -1.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体电子元件1
+  let p17 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dianzi_1.glb", (gltf) => {
+        gltf.scene.position.set(31, 98, -4.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  // 舱体电子元件2
+  let p18 = new Promise((resolve) => {
+    loader
+      .setPath("./model/")
+      .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
+      .load("GLTF/dianzi_2.glb", (gltf) => {
+        gltf.scene.position.set(39.5, 98.5, -4.8);
+        resolve(gltf.scene);
+      });
+  });
+
+  Promise.all([
+    p1,
+    p2,
+    p3,
+    p4,
+    p5,
+    p6,
+    p7,
+    p8,
+    p9,
+    p10,
+    p11,
+    p12,
+    p13,
+    p14,
+    p15,
+    p16,
+    p17,
+    p18,
+  ]).then((result) => {
     fan.add(result[0], result[1]);
     fan.scale.set(0.005, 0.005, 0.005);
     fan.position.set(5.11, 3.19598, 12.016);
@@ -277,11 +427,34 @@ function addModel() {
     sceneOne.add(land2);
     sceneOne.add(land3);
 
+    // 修改模型名称
+    resetName(result[8], "zhuzhou");
+    resetName(result[9], "dizuo_2");
+    resetName(result[10], "fadongji");
+    resetName(result[11], "dizuo_1");
+    resetName(result[12], "houzhuji1");
+    resetName(result[13], "dianzi_3");
+    resetName(result[14], "dizuo_3");
+    resetName(result[15], "dizuo_4");
+    resetName(result[16], "dianzi_1");
+    resetName(result[17], "dianzi_2");
     // 场景2
-    flowTrunk = result[5];
+    flowTrunk.add(result[5], result[7]);
     flowTrunk.position.set(-2.2235, 99.65812, -1.5);
-    flowFan.add(result[1].clone());
-    flowFan.add(flowTrunk);
+    flowFan.add(
+      result[1].clone(),
+      flowTrunk,
+      result[8],
+      result[9],
+      result[10],
+      result[11],
+      result[12],
+      result[13],
+      result[14],
+      result[15],
+      result[16],
+      result[17]
+    );
     flowFan.scale.set(0.04, 0.04, 0.04);
     flowFan.rotation.set(0, 89.5, 0);
     flowFan.position.set(0, -1, 0);
