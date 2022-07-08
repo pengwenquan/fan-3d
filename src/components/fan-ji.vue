@@ -40,7 +40,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
-import gsap from "gsap";
+import gsap, { Linear } from "gsap";
 
 let scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(
@@ -49,6 +49,7 @@ let camera = new THREE.PerspectiveCamera(
   0.1,
   10000
 );
+let light = new THREE.DirectionalLight(0xffffff);
 let loader = new GLTFLoader();
 let arrTweenAn = [];
 let fan = new THREE.Object3D();
@@ -58,6 +59,10 @@ let sceneTwo = new THREE.Object3D();
 // 流光风机
 let flowTrunk = new THREE.Object3D();
 let flowFan = new THREE.Object3D();
+let textureloader = new THREE.TextureLoader();
+let textureFlow = textureloader.load("./texture/light-animation.png");
+let textureMaterial;
+let beLoaded = false;
 
 // 按钮点中状态
 let isStart = ref(true);
@@ -70,7 +75,6 @@ function init() {
   camera.position.set(10, 7, 20);
   scene.add(camera);
 
-  let light = new THREE.DirectionalLight(0xffffff);
   light.position.set(20, 20, 20);
   scene.add(light);
 
@@ -92,6 +96,9 @@ function init() {
 
   function tick() {
     controls.update();
+    if (beLoaded) {
+      textureMaterial.map.offset.x += 0.01;
+    }
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }
@@ -252,6 +259,20 @@ function addModel() {
       .setPath("./model/")
       .setDRACOLoader(new DRACOLoader().setDecoderPath("./js/draco/gltf/"))
       .load("GLTF/liuguang.glb", (gltf) => {
+        textureMaterial = gltf.scene.getObjectByName("模型").material;
+        textureMaterial.map = textureFlow;
+        textureMaterial.transparent = true;
+        textureMaterial.map.wrapS = textureMaterial.map.wrapT =
+          THREE.RepeatWrapping;
+
+        gltf.scene.getObjectByName("模型").material = textureMaterial;
+        gltf.scene.getObjectByName("模型_1").material = textureMaterial;
+        gltf.scene.getObjectByName("模型_2").material = textureMaterial;
+        gltf.scene.traverse((child) => {
+          if (child.isMesh) {
+            child.material.side = 2;
+          }
+        });
         let an = gsap.to(gltf.scene.rotation, {
           duration: 5,
           x: gltf.scene.rotation.x + Math.PI * 2,
@@ -525,6 +546,7 @@ function addModel() {
     land2.position.set(20.758, 1.73076, -3.13564);
     land3.position.set(6.37, 2.578, 11.246);
     land3.rotation.set(0, 29.87, 0);
+    beLoaded = true;
     scene.add(sceneOne);
     scene.add(sceneTwo);
   });
@@ -567,8 +589,51 @@ function showFan() {
 }
 
 function showDetail() {
-  if (!isShowFan.value || isPlit.value) return; // 风机视角下才可以操作
+  if (!isShowFan.value || isPlit.value || loading.value) return; // 风机视角下才可以操作
   isShowDetail.value = !isShowDetail.value;
+  if (isShowDetail.value) {
+    gsap.to(camera.position, {
+      duration: 5,
+      x: 2.29,
+      y: 0.66,
+      z: 1.187,
+      repeat: 0,
+      ease: Linear.easeOut,
+      onComplete: () => {
+        light.position.set(10, 2, 0);
+      },
+    });
+
+    gsap.to(flowFan.position, {
+      duration: 5,
+      x: -1,
+      y: -4,
+      z: 0,
+      repeat: 0,
+      ease: Linear.easeOut,
+    });
+  } else {
+    gsap.to(camera.position, {
+      duration: 5,
+      x: 9.536,
+      y: 3.862,
+      z: 15.19,
+      repeat: 0,
+      ease: Linear.easeOut,
+    });
+
+    gsap.to(flowFan.position, {
+      duration: 5,
+      x: 0,
+      y: -1,
+      z: 0,
+      repeat: 0,
+      ease: Linear.easeOut,
+      onComplete: () => {
+        light.position.set(10, 10, -10);
+      },
+    });
+  }
 }
 
 function splitFan() {
