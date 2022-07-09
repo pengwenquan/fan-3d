@@ -31,17 +31,43 @@
         爆炸分裂
       </div>
     </div>
+    <div class="cabin-popup" ref="Alarm_pop" :style="{ display: bPopus1 }">
+      <div class="cabin-popup-dian"></div>
+      <div class="cabin-popup-line"></div>
+      <div class="cabin-popup-image"></div>
+      <div class="cabin-popup-logo"></div>
+      <div class="air-cooling">
+        <span class="cabin-popup-name1">{{ PopupArrValue.title }}</span>
+        <span class="cabin-popup-name2">{{ PopupArrValue.name1 }}</span>
+        <span class="cabin-popup-name3">{{ PopupArrValue.name2 }}</span>
+        <span class="cabin-popup-name4">{{ PopupArrValue.name3 }}</span>
+        <span class="cabin-popup-name5">{{ PopupArrValue.name4 }}</span>
+        <span class="cabin-popup-name6">{{ PopupArrValue.number1 }}</span>
+        <span class="cabin-popup-name7">{{ PopupArrValue.number2 }}</span>
+        <span class="cabin-popup-name8">{{ PopupArrValue.number3 }}</span>
+        <span class="cabin-popup-name9">{{ PopupArrValue.number4 }}</span>
+        <span class="cabin-popup-name10">{{ PopupArrValue.Symbol1 }}</span>
+        <span class="cabin-popup-name11">{{ PopupArrValue.Symbol2 }}</span>
+        <span class="cabin-popup-name12">{{ PopupArrValue.Symbol3 }}</span>
+        <span class="cabin-popup-name13">{{ PopupArrValue.Symbol4 }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref, reactive } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import gsap, { Linear } from "gsap";
 
+let renderer = new THREE.WebGLRenderer({
+  alpha: true,
+  antialias: true,
+  logarithmicDepthBuffer: true,
+});
 let scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(
   45,
@@ -64,12 +90,33 @@ let textureFlow = textureloader.load("./texture/light-animation.png");
 let textureMaterial;
 let beLoaded = false;
 
+// 描边相关参数
+let arrNeedOutline = [];
+let nowSelected;
+
 // 按钮点中状态
 let isStart = ref(true);
 let isShowFan = ref(false);
 let isShowDetail = ref(false);
 let isPlit = ref(false);
 let loading = ref(false);
+let PopupArrValue = reactive({
+  title: "风冷装置",
+  name1: "风冷功率",
+  name2: "风冷温度",
+  name3: "功率",
+  name4: "温度",
+  number1: "8",
+  number2: "300",
+  number3: "200",
+  number4: "24",
+  Symbol1: "°C",
+  Symbol2: "KWh",
+  Symbol3: "KW",
+  Symbol4: "°C",
+});
+let bPopus1 = ref("none");
+let Alarm_pop = ref(null);
 
 function init() {
   camera.position.set(10, 7, 20);
@@ -77,12 +124,6 @@ function init() {
 
   light.position.set(20, 20, 20);
   scene.add(light);
-
-  let renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true,
-    logarithmicDepthBuffer: true,
-  });
 
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(2);
@@ -143,6 +184,202 @@ function resetName(obj, name) {
       ++i;
     }
   });
+}
+
+function addOutLine(obj, strName, bErr) {
+  let cloneObj = obj.clone();
+  cloneObj.position.x = obj.position.x + 0.1;
+  cloneObj.scale.set(1.02, 1.02, 1.02);
+  cloneObj.visible = false;
+  stroke(cloneObj, bErr);
+  arrNeedOutline.push({
+    name: strName,
+    obj: cloneObj,
+    err: bErr,
+  });
+  flowFan.add(cloneObj);
+}
+
+function stroke(obj, bErr) {
+  let meshMaterial = new THREE.MeshBasicMaterial();
+  obj.traverse((child) => {
+    if (child.isMesh) {
+      child.material = meshMaterial;
+      child.material.side = 1;
+      child.material.color = bErr
+        ? new THREE.Color(0xff0000)
+        : new THREE.Color(0xffffff);
+    }
+  });
+}
+
+function findModelSelected(strName) {
+  let msize = arrNeedOutline.length;
+  for (let i = 0; i < msize; i++) {
+    if (strName.indexOf(arrNeedOutline[i].name) !== -1) {
+      nowSelected = arrNeedOutline[i].obj;
+      changeStatus(arrNeedOutline[i].obj, true, arrNeedOutline[i].err);
+      return arrNeedOutline[i].name;
+    }
+  }
+}
+
+function setErrStatus(strName, bErr) {
+  let nSize = arrNeedOutline.length;
+  for (var i = 0; i < nSize; ++i) {
+    if (strName == arrNeedOutline[i].name) {
+      arrNeedOutline[i].err = bErr;
+      break;
+    }
+  }
+}
+
+// 监听点击事件
+function mouseClick(eve) {
+  if (splitFan.value) return;
+  eve.preventDefault();
+  eve.stopPropagation();
+  const mouse = new THREE.Vector2();
+  mouse.x = (eve.offsetX / renderer.domElement.offsetWidth) * 2 - 1;
+  mouse.y = -(eve.offsetY / renderer.domElement.offsetHeight) * 2 + 1;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  let intersects = raycaster.intersectObject(flowFan.children, true);
+
+  if (nowSelected !== undefined) {
+    changeStatus(nowSelected, false);
+  }
+
+  if (intersects[0] !== undefined) return;
+
+  let strSelectName = findModelSelected(intersects[0].object.name);
+
+  switch (strSelectName) {
+    case "houzhuji1":
+      getMousePos(Alarm_pop.value, this.dom, 0, -24, -215, -113, eve);
+      PopupArrValue.title = "风冷装置";
+      PopupArrValue.name1 = "风冷功率";
+      PopupArrValue.name2 = "风冷温度";
+      PopupArrValue.name3 = "功率";
+      PopupArrValue.name4 = "温度";
+      PopupArrValue.number1 = "8";
+      PopupArrValue.number2 = "300";
+      PopupArrValue.number3 = "200";
+      PopupArrValue.number4 = "24";
+      PopupArrValue.Symbol1 = "°C";
+      PopupArrValue.Symbol2 = "KWh";
+      PopupArrValue.Symbol3 = "KW";
+      PopupArrValue.Symbol4 = "°C";
+      bPopus1 = "block";
+      break;
+    case "zhuzhou":
+      getMousePos(Alarm_pop.value, this.dom, 0, -124, -215, -113, eve);
+      PopupArrValue.title = "主轴";
+      PopupArrValue.name1 = "电压";
+      PopupArrValue.name2 = "电流";
+      PopupArrValue.name3 = "功率";
+      PopupArrValue.name4 = "频率";
+      PopupArrValue.number1 = "220";
+      PopupArrValue.number2 = "30";
+      PopupArrValue.number3 = "10";
+      PopupArrValue.number4 = "200";
+      PopupArrValue.Symbol1 = "伏特";
+      PopupArrValue.Symbol2 = "安培";
+      PopupArrValue.Symbol3 = "千瓦";
+      PopupArrValue.Symbol4 = "赫兹";
+      bPopus1 = "block";
+      break;
+    case "fadongji":
+      getMousePos(Alarm_pop.value, this.dom, 0, -124, -215, -113, eve);
+      PopupArrValue.title = "油冷装置";
+      PopupArrValue.name1 = "功率";
+      PopupArrValue.name2 = "容量";
+      PopupArrValue.name3 = "油耗";
+      PopupArrValue.name4 = "工作时间";
+      PopupArrValue.number1 = "15";
+      PopupArrValue.number2 = "500";
+      PopupArrValue.number3 = "100";
+      PopupArrValue.number4 = "72";
+      PopupArrValue.Symbol1 = "KW";
+      PopupArrValue.Symbol2 = "L";
+      PopupArrValue.Symbol3 = "G/KW.H";
+      PopupArrValue.Symbol4 = "H";
+      bPopus1 = "block";
+      break;
+    case "dizuo_1":
+      getMousePos(Alarm_pop.value, this.dom, 0, -124, -215, -113, eve);
+      PopupArrValue.title = "偏航装置";
+      PopupArrValue.name1 = "速度";
+      PopupArrValue.name2 = "制动力矩";
+      PopupArrValue.name3 = "功率";
+      PopupArrValue.name4 = "频率";
+      PopupArrValue.number1 = "20";
+      PopupArrValue.number2 = "25";
+      PopupArrValue.number3 = "6";
+      PopupArrValue.number4 = "150";
+      PopupArrValue.Symbol1 = "R";
+      PopupArrValue.Symbol2 = "Nm";
+      PopupArrValue.Symbol3 = "Kw";
+      PopupArrValue.Symbol4 = "Hrz";
+      bPopus1 = "block";
+      break;
+    case "dizuo_2":
+      getMousePos(Alarm_pop.value, this.dom, 0, -24, -215, -113, eve);
+      PopupArrValue.title = "底座";
+      PopupArrValue.name1 = "耐热温度";
+      PopupArrValue.name2 = "损耗程度";
+      PopupArrValue.name3 = "湿度";
+      PopupArrValue.number1 = "160";
+      PopupArrValue.number2 = "10";
+      PopupArrValue.number3 = "40";
+      PopupArrValue.Symbol1 = "°C";
+      PopupArrValue.Symbol2 = "%";
+      PopupArrValue.Symbol3 = "%";
+      bPopus1 = "block";
+      break;
+    case "dizuo_3":
+      getMousePos(Alarm_pop.value, this.dom, 0, -124, -215, -113, eve);
+      PopupArrValue.title = "齿轮系统";
+      PopupArrValue.name1 = "油槽温度";
+      PopupArrValue.name2 = "入口轴温度";
+      PopupArrValue.name3 = "输入轴温度";
+      PopupArrValue.name4 = "输出轴温度";
+      PopupArrValue.number1 = "60";
+      PopupArrValue.number2 = "50";
+      PopupArrValue.number3 = "70";
+      PopupArrValue.number4 = "65";
+      PopupArrValue.Symbol1 = "°C";
+      PopupArrValue.Symbol2 = "°C";
+      PopupArrValue.Symbol3 = "°C";
+      PopupArrValue.Symbol4 = "°C";
+      bPopus1 = "block";
+      break;
+    default:
+      bPopus1 = "none";
+  }
+}
+
+function getMousePos(o, canvas, x, x1, y, y1, event) {
+  let rect = canvas.getBoundingClientRect();
+
+  let positionX = event.clientX - rect.left;
+  let positionY = event.clientY - rect.top;
+  o.style.position = "absolute";
+  if (positionY > 600) {
+    o.style.top = y1 + positionY + "px"; //用鼠标指针的y轴坐标和传入偏移值设置对象y轴坐标
+  } else {
+    o.style.top = y + positionY + "px";
+  }
+
+  if (positionX > 1200) {
+    o.style.left = x1 + positionX + "px"; //用鼠标指针的x轴坐标和传入偏移值设置对象x轴坐标
+  } else {
+    o.style.left = x + positionX + "px"; //用鼠标指针的x轴坐标和传入偏移值设置对象x轴坐标
+  }
+}
+
+function changeStatus(cloneObj, bEnter) {
+  cloneObj.visible = bEnter;
 }
 
 function addModel() {
@@ -476,6 +713,19 @@ function addModel() {
       result[16],
       result[17]
     );
+
+    // 添加描边
+    addOutLine(result[8], "zhuzhou", false);
+    addOutLine(result[9], "dizuo_2", false);
+    addOutLine(result[10], "fadongji", false);
+    addOutLine(result[11], "dizuo_1", false);
+    addOutLine(result[12], "houzhuji1", false);
+    addOutLine(result[13], "dianzi_3", false);
+    addOutLine(result[14], "dizuo_3", false);
+    addOutLine(result[15], "dizuo_4", false);
+    addOutLine(result[16], "dianzi_1", false);
+    addOutLine(result[17], "dianzi_2", false);
+    setErrStatus("fadongji", true);
     flowFan.scale.set(0.04, 0.04, 0.04);
     flowFan.rotation.set(0, 89.5, 0);
     flowFan.position.set(0, -1, 0);
@@ -653,6 +903,7 @@ function start() {
 onMounted(() => {
   init();
   addModel();
+  window.addEventListener("click", mouseClick.bind(this));
 });
 </script>
 
@@ -701,5 +952,172 @@ onMounted(() => {
   .split-fan.active {
     background: url("@/assets/btn_hot_bz.png") center center no-repeat;
   }
+}
+.cabin-popup {
+  width: 520px;
+  height: 231px;
+  position: absolute;
+  top: 0px;
+  pointer-events: none;
+}
+
+.cabin-popup-dian {
+  width: 23px;
+  height: 23px;
+  background-image: url("~@/assets/yuandian.png");
+  background-repeat: no-repeat;
+  position: absolute;
+  left: 3px;
+  top: 207px;
+}
+
+.cabin-popup-line {
+  width: 112px;
+  height: 90px;
+  background-image: url("~@/assets/tankuang_lianxian.png");
+  background-repeat: no-repeat;
+  position: absolute;
+  left: 17px;
+  top: 124px;
+}
+
+.cabin-popup-image {
+  width: 383px;
+  height: 191px;
+  background-image: url("~@/assets/bg_tankuang.png");
+  background-repeat: no-repeat;
+  position: absolute;
+  left: 122px;
+  top: 32px;
+  z-index: 10;
+}
+
+.cabin-popup-logo {
+  width: 110px;
+  height: 110px;
+  background-image: url("~@/assets/fengji_sbxx.png");
+  background-repeat: no-repeat;
+  background-size: 106px 97px;
+  position: absolute;
+  left: 157px;
+  top: 74px;
+  z-index: 11;
+}
+
+.cabin-popup-name1 {
+  color: #a3a2d9;
+  font-size: 16px;
+  position: absolute;
+  top: 50px;
+  left: 280px;
+  z-index: 11;
+}
+
+.cabin-popup-name2 {
+  color: #fff;
+  font-size: 14px;
+  position: absolute;
+  top: 90px;
+  left: 280px;
+  z-index: 11;
+}
+
+.cabin-popup-name3 {
+  color: #fff;
+  font-size: 14px;
+  position: absolute;
+  top: 119px;
+  left: 280px;
+  z-index: 11;
+}
+
+.cabin-popup-name4 {
+  color: #fff;
+  font-size: 14px;
+  position: absolute;
+  top: 149px;
+  left: 280px;
+  z-index: 11;
+}
+
+.cabin-popup-name5 {
+  color: #fff;
+  font-size: 14px;
+  position: absolute;
+  top: 179px;
+  left: 280px;
+  z-index: 11;
+}
+
+.cabin-popup-name6 {
+  color: #f4d310;
+  font-size: 16px;
+  position: absolute;
+  top: 90px;
+  left: 376px;
+  z-index: 11;
+}
+
+.cabin-popup-name7 {
+  color: #f4d310;
+  font-size: 14px;
+  position: absolute;
+  top: 119px;
+  left: 376px;
+  z-index: 11;
+}
+
+.cabin-popup-name8 {
+  color: #f4d310;
+  font-size: 14px;
+  position: absolute;
+  top: 149px;
+  left: 376px;
+  z-index: 11;
+}
+
+.cabin-popup-name9 {
+  color: #f4d310;
+  font-size: 14px;
+  position: absolute;
+  top: 179px;
+  left: 376px;
+  z-index: 11;
+}
+
+.cabin-popup-name10 {
+  color: #6f71a2;
+  font-size: 14px;
+  position: absolute;
+  top: 90px;
+  left: 442px;
+  z-index: 11;
+}
+
+.cabin-popup-name11 {
+  color: #6f71a2;
+  font-size: 14px;
+  position: absolute;
+  top: 119px;
+  left: 442px;
+  z-index: 11;
+}
+
+.cabin-popup-name12 {
+  color: #6f71a2;
+  font-size: 14px;
+  position: absolute;
+  top: 149px;
+  left: 442px;
+  z-index: 11;
+}
+
+.cabin-popup-name13 {
+  color: #6f71a2;
+  font-size: 14px;
+  position: absolute;
+  top: 179px;
+  left: 442px;
+  z-index: 11;
 }
 </style>
